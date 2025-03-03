@@ -7,6 +7,7 @@
 # Created:     08.10.2024
 # Copyright:   (c) Студент 2024
 # Licence:     <your licence>
+# Licence:     <your licence>
 #-------------------------------------------------------------------------------
 
 import pygame
