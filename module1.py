@@ -1,7 +1,7 @@
 import pygame
 import random
 
-# Константы
+# Константы ура
 BACKGROUND_COLOR = (255, 239, 213)
 FPS = 40
 BLOCK_SIZE = 40
