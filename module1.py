@@ -1,7 +1,7 @@
 import pygame
 import random
 
-# Константы ура
+# Константы
 BACKGROUND_COLOR = (255, 239, 213)
 FPS = 40
 BLOCK_SIZE = 40
@@ -76,6 +76,21 @@ class Block(Picture):
         super().__init__(x, y, width, height, filename)
         self.destructible = destructible
 
+class Enemy(Picture):
+    def __init__(self, x, y, width, height, filename=None):
+        super().__init__(x, y, width, height, filename)
+        self.speed = 2  # Скорость врага
+        self.direction = 1  # Направление: 1 - вниз, -1 - вверх
+        self.alive = True  # Враг жив
+
+    def move(self, walls):
+        if self.alive:
+            new_rect = self.rect.move(0, self.direction * self.speed)
+            if not any(new_rect.colliderect(wall.rect) for wall in walls):
+                self.rect = new_rect
+            else:
+                self.direction *= -1  # Меняем направление при столкновении со стеной
+
 def generate_level(player_rect):
     level = []
     player_x = player_rect.x // BLOCK_SIZE
@@ -100,6 +115,24 @@ def start_game():
     level = generate_level(player.rect)
     exit_block = random.choice([block for block in level if block.destructible])
     exit_block.rect_color = (255, 0, 0)  # Маркируем выход
+    door = None  # Дверь, которая появится после уничтожения exit_block
+
+    # Создаём врагов
+    enemies = []
+    for _ in range(3):  # Создаём 3 врага
+        while True:
+            x = random.randint(1, GRID_WIDTH - 2) * BLOCK_SIZE
+            y = random.randint(1, GRID_HEIGHT - 2) * BLOCK_SIZE
+            # Убедимся, что враг не появляется внутри неразрушаемых блоков
+            collision = False
+            for block in level:
+                if not block.destructible and block.rect.colliderect(pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)):
+                    collision = True
+                    break
+            if not collision and abs(x - player.rect.x) >= 3 * BLOCK_SIZE and abs(y - player.rect.y) >= 3 * BLOCK_SIZE:
+                break
+        enemy = Enemy(x, y, BLOCK_SIZE, BLOCK_SIZE, 'img/enemy2.png')
+        enemies.append(enemy)
 
     run = True
     game = True
@@ -177,12 +210,13 @@ def start_game():
                                 if block.rect.colliderect(rect) and block.destructible:
                                     level.remove(block)
                                     if block == exit_block:
-                                        font1 = pygame.font.SysFont('verdana', 40)
-                                        text = font1.render('Победа!', True, (81, 200, 120))
-                                        window.blit(text, (150, 200))
-                                        pygame.display.update()
-                                        pygame.time.wait(2000)  # Задержка перед завершением
-                                        return show_end_menu()
+                                        # Создаём дверь на месте уничтоженного блока
+                                        door = Picture(block.rect.x, block.rect.y, BLOCK_SIZE, BLOCK_SIZE, 'img/door.png')
+
+                        # Уничтожение врагов
+                        for enemy in enemies[:]:
+                            if enemy.alive and any(enemy.rect.colliderect(rect) for rect in explosion_rects):
+                                enemy.alive = False
 
                         # Проверка попадания игрока
                         if any(player.rect.colliderect(rect) for rect in explosion_rects):
@@ -203,6 +237,29 @@ def start_game():
                 else:
                     explosions[explosions.index(explosion)] = (explosion_rects, timer - 1)
 
+            # Отрисовка двери, если она существует
+            if door:
+                door.draw()
+                # Проверка победы (игрок наступил на дверь)
+                if player.rect.colliderect(door.rect):
+                    font1 = pygame.font.SysFont('verdana', 40)
+                    text = font1.render('Победа!', True, (81, 200, 120))
+                    window.blit(text, (150, 200))
+                    pygame.display.update()
+                    pygame.time.wait(2000)  # Задержка перед завершением
+                    return show_end_menu()
+
+            # Движение и отрисовка врагов
+            for enemy in enemies:
+                if enemy.alive:
+                    enemy.move(level)
+                    enemy.draw()
+                    # Проверка столкновения с игроком
+                    if player.rect.colliderect(enemy.rect):
+                        player.lives -= 1
+                        if player.lives <= 0:
+                            return start_game()  # Начинаем заново
+
             pygame.display.update()
     return show_end_menu()
 
@@ -215,7 +272,7 @@ class Label(Area):
         window.blit(self.image, (self.rect.x + shift_x, self.rect.y + shift_y))
 
 def show_end_menu():
-    question = Label(150, 200, 200, 50, BACKGROUND_COLOR)
+    question = Label(100, 200, 500, 100, BACKGROUND_COLOR)
     question.set_text("Продолжить? (Y)", 20, (139, 0, 255))
     question.draw(10, 10)
 
