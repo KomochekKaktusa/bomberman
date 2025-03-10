@@ -123,15 +123,15 @@ def start_game():
         while True:
             x = random.randint(1, GRID_WIDTH - 2) * BLOCK_SIZE
             y = random.randint(1, GRID_HEIGHT - 2) * BLOCK_SIZE
-            # Убедимся, что враг не появляется внутри неразрушаемых блоков
+            # Убедимся, что враг не появляется внутри блоков
             collision = False
             for block in level:
-                if not block.destructible and block.rect.colliderect(pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)):
+                if block.rect.colliderect(pygame.Rect(x, y, BLOCK_SIZE, BLOCK_SIZE)):
                     collision = True
                     break
             if not collision and abs(x - player.rect.x) >= 3 * BLOCK_SIZE and abs(y - player.rect.y) >= 3 * BLOCK_SIZE:
                 break
-        enemy = Enemy(x, y, BLOCK_SIZE, BLOCK_SIZE, 'img/enemy2.png')
+        enemy = Enemy(x, y, BLOCK_SIZE, BLOCK_SIZE, 'img/enemy.png')
         enemies.append(enemy)
 
     run = True
@@ -218,12 +218,6 @@ def start_game():
                             if enemy.alive and any(enemy.rect.colliderect(rect) for rect in explosion_rects):
                                 enemy.alive = False
 
-                        # Проверка попадания игрока
-                        if any(player.rect.colliderect(rect) for rect in explosion_rects):
-                            player.lives -= 1
-                            if player.lives <= 0:
-                                return start_game()  # Начинаем заново
-
                     continue
                 bombs.remove(bomb)
                 can_place_bomb = True  # Игрок снова может ставить бомбу
@@ -232,6 +226,12 @@ def start_game():
                 explosion_rects, timer = explosion
                 for rect in explosion_rects:
                     pygame.draw.rect(window, (255, 0, 0), rect)
+                # Проверка попадания игрока и врагов в зону взрыва
+                if any(player.rect.colliderect(rect) for rect in explosion_rects):
+                    player.lives -= 1
+                for enemy in enemies:
+                    if enemy.alive and any(enemy.rect.colliderect(rect) for rect in explosion_rects):
+                        enemy.alive = False
                 if timer <= 0:
                     explosions.remove(explosion)
                 else:
@@ -257,8 +257,15 @@ def start_game():
                     # Проверка столкновения с игроком
                     if player.rect.colliderect(enemy.rect):
                         player.lives -= 1
-                        if player.lives <= 0:
-                            return start_game()  # Начинаем заново
+
+            # Проверка на завершение игры (потеря всех жизней)
+            if player.lives < 1:  # Игра заканчивается, если жизни меньше 1
+                font1 = pygame.font.SysFont('verdana', 40)
+                text = font1.render('Игра Окончена!', True, (255, 0, 0))
+                window.blit(text, (150, 200))
+                pygame.display.update()
+                pygame.time.wait(2000)  # Задержка перед завершением
+                return show_end_menu()
 
             pygame.display.update()
     return show_end_menu()
@@ -272,11 +279,11 @@ class Label(Area):
         window.blit(self.image, (self.rect.x + shift_x, self.rect.y + shift_y))
 
 def show_end_menu():
-    question = Label(100, 200, 500, 100, BACKGROUND_COLOR)
+    question = Label(150, 200, 400, 50, BACKGROUND_COLOR)
     question.set_text("Продолжить? (Y)", 20, (139, 0, 255))
     question.draw(10, 10)
 
-    exit_button = Label(150, 250, 200, 50, BACKGROUND_COLOR)
+    exit_button = Label(150, 250, 400, 50, BACKGROUND_COLOR)
     exit_button.set_text("Нажмите Q для выхода", 20, (139, 0, 255))
     exit_button.draw(10, 10)
 
